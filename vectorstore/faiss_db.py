@@ -55,11 +55,15 @@ class FAISSDatabase:
     def add_texts(self, texts: List[str], metadatas: List[Dict[str, Any]]):
         if not texts:
             return
-        embeddings = self.embedder.get_embeddings(texts)
-        emb_arr = np.array(embeddings, dtype=np.float32)
-        # Normalize vectors for cosine similarity (Inner Product index)
-        norms = np.linalg.norm(emb_arr, axis=1, keepdims=True)
-        emb_arr = emb_arr / (norms + 1e-8)
+        try:
+            embeddings = self.embedder.get_embeddings(texts)
+            emb_arr = np.array(embeddings, dtype=np.float32)
+            # Normalize vectors for cosine similarity (Inner Product index)
+            norms = np.linalg.norm(emb_arr, axis=1, keepdims=True)
+            emb_arr = emb_arr / (norms + 1e-8)
+        except Exception as e:
+            print(f"Warning: FAISS embedding failed ({str(e)}). Using dummy zero vectors.")
+            emb_arr = np.zeros((len(texts), self.dimension), dtype=np.float32)
         
         self.index.add(emb_arr)
         self.texts.extend(texts)
@@ -67,25 +71,46 @@ class FAISSDatabase:
         self.save()
 
     def similarity_search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
-        if self.index.ntotal == 0:
+        if not self.texts:
             return []
         
-        q_emb = np.array([self.embedder.get_embedding(query)], dtype=np.float32)
-        # Normalize query vector
-        q_emb = q_emb / (np.linalg.norm(q_emb) + 1e-8)
-        
-        actual_k = min(k, self.index.ntotal)
-        distances, indices = self.index.search(q_emb, actual_k)
-        
+        try:
+            if self.index and self.index.ntotal > 0:
+                q_emb = np.array([self.embedder.get_embedding(query)], dtype=np.float32)
+                # Normalize query vector
+                q_emb = q_emb / (np.linalg.norm(q_emb) + 1e-8)
+                
+                actual_k = min(k, self.index.ntotal)
+                distances, indices = self.index.search(q_emb, actual_k)
+                
+                results = []
+                for i, idx in enumerate(indices[0]):
+                    if idx == -1 or idx >= len(self.texts):
+                        continue
+                    res = self.metadatas[idx].copy()
+                    res["text"] = self.texts[idx]
+                    res["score"] = float(distances[0][i])
+                    results.append(res)
+                return results
+        except Exception as e:
+            print(f"Warning: FAISS search failed ({str(e)}). Falling back to local keyword matching.")
+            
+        # Local keyword matching fallback
         results = []
-        for i, idx in enumerate(indices[0]):
-            if idx == -1 or idx >= len(self.texts):
-                continue
-            res = self.metadatas[idx].copy()
-            res["text"] = self.texts[idx]
-            res["score"] = float(distances[0][i])
-            results.append(res)
-        return results
+        q_words = query.lower().split()
+        for idx, text in enumerate(self.texts):
+            score = 0.0
+            for w in q_words:
+                if w in text.lower():
+                    score += 1.0
+            if score > 0:
+                res = self.metadatas[idx].copy()
+                res["text"] = text
+                res["score"] = score / len(q_words)
+                results.append(res)
+        # Sort by score descending
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:k]
 
     def clear(self):
         self._init_empty_index()
