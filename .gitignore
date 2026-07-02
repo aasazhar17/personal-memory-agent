@@ -1,0 +1,30 @@
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+venv.bak/
+
+# Streamlit configurations (optional cache files)
+.streamlit/
+
+# Local databases and search index files
+# (Users cloning the repository should run seed_cli.py to create their own)
+data/
+documents/
+
+# IDE files
+.vscode/
+.idea/
+.project
+.pydevproject
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
