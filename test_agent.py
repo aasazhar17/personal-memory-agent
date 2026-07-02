@@ -52,5 +52,14 @@ async def main():
     print(res3["answer"])
     print("Steps:", res3["steps"])
 
+    print("\n--- Test 4: Local greeting and chit-chat fallback ---")
+    queries = ["how are you", "who are you", "what can you do", "hi there"]
+    for q in queries:
+        print(f"\nQuery: '{q}'")
+        res = await planner.execute(q)
+        print("Answer:")
+        print(res["answer"])
+        print("Steps:", res["steps"])
+
 if __name__ == "__main__":
     asyncio.run(main())

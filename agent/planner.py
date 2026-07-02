@@ -20,13 +20,10 @@ class AgentPlanner:
             parts = query.split("\n\nUser Query: ")
             user_query = parts[1]
         
-        # Check for simple greeting fallback
-        if user_query.lower().strip() in ["hi", "hello", "hey", "hola", "greetings", "hii", "heyy"]:
-            return {
-                "answer": "Hello! How can I help you today? Ask me about your notes, expenses, documents, or personal profile facts.",
-                "steps": ["Parsed local greeting"],
-                "tools_used": []
-            }
+        # Check for local greeting, chit-chat, identity, or help fallbacks
+        chat_fallback = self._handle_local_chat_fallback(user_query)
+        if chat_fallback:
+            return chat_fallback
         
         steps = []
         tools_used = []
@@ -179,6 +176,74 @@ class AgentPlanner:
             "steps": steps,
             "tools_used": tools_used
         }
+
+    def _handle_local_chat_fallback(self, query: str) -> Dict[str, Any]:
+        """Recognize and handle local fallback for greetings, chit-chat, identity, and help."""
+        # Normalize
+        q = query.lower().strip().strip('?!.')
+        words = q.split()
+        
+        # 1. Greetings (exact match or very short query)
+        greetings = {
+            "hi", "hello", "hey", "hola", "greetings", "hii", "heyy", "hey there", "hi there", "hello there",
+            "good morning", "good afternoon", "good evening", "howdy", "yo"
+        }
+        if q in greetings:
+            return {
+                "answer": "Hello! How can I help you today? Ask me about your notes, expenses, documents, or personal profile facts.",
+                "steps": ["Parsed local greeting"],
+                "tools_used": []
+            }
+            
+        # 2. Chit-chat (exact match or short query containing key phrases)
+        chitchat_exact = {
+            "how are you", "how's it going", "how are you doing", "what's up", "how have you been", "how is it going",
+            "are you there", "are you online"
+        }
+        chitchat_phrases = ["how are you", "how's it going", "what's up", "how are you doing"]
+        if q in chitchat_exact or (len(words) <= 5 and any(phrase in q for phrase in chitchat_phrases)):
+            return {
+                "answer": "I'm doing well, thank you! I'm here as your Personal Memory Agent, ready to assist you. How can I help you today?",
+                "steps": ["Parsed local chit-chat"],
+                "tools_used": []
+            }
+            
+        # 3. Identity (asking who the bot is)
+        identity_exact = {
+            "who are you", "what is your name", "what's your name", "who am i talking to", "what are you", "who are u",
+            "what is your identity"
+        }
+        identity_phrases = ["who are you", "what is your name", "what's your name", "who are u"]
+        if q in identity_exact or (len(words) <= 6 and any(phrase in q for phrase in identity_phrases)):
+            return {
+                "answer": "I am your Personal Memory Agent, a state-of-the-art assistant designed to capture, synthesize, search, and calculate information from your notes, expenses, PDF documents, and profile facts.",
+                "steps": ["Parsed local identity query"],
+                "tools_used": []
+            }
+            
+        # 4. Capabilities / Help (must be a pure help query, not search query)
+        help_exact = {
+            "help", "how do you work", "how can you help", "what are your features",
+            "capabilities", "features", "how to use", "commands", "menu", "what can you do"
+        }
+        help_phrases = ["what can you do", "how do you work", "what are your features", "how to use"]
+        # If the user literally just typed "help", or a short help phrase
+        if q in help_exact or (len(words) <= 5 and any(phrase in q for phrase in help_phrases)):
+            help_text = (
+                "I can help you with:\n\n"
+                "- 📝 **Notes Manager**: Save notes by saying *\"add note: [content]\"* or searching them.\n"
+                "- 💰 **Expense Tracker**: Log expenses (e.g., *\"spent 500 on dinner\"*) and view breakdowns.\n"
+                "- 👤 **Profile & Documents**: Store profile facts (e.g., *\"my pet name is Rocky\"*) and search uploaded PDFs.\n"
+                "- 🧮 **Calculator**: Perform arithmetic queries (e.g., *\"Calculate 12000 + 4500\"*).\n\n"
+                "Ask me questions in natural language and I will synthesize the answers!"
+            )
+            return {
+                "answer": help_text,
+                "steps": ["Parsed local help/capabilities query"],
+                "tools_used": []
+            }
+            
+        return None
 
     async def _run_llm_agent(self, query: str, api_key: str) -> Dict[str, Any]:
         import google.generativeai as genai
