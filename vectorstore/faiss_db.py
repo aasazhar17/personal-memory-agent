@@ -17,9 +17,8 @@ class FAISSDatabase:
         self.metadata_path = os.path.join(self.data_dir, "faiss_metadata.json")
         self.embedder = embedder or EmbeddingGenerator()
         
-        # Determine embedding dimension by encoding a dummy string
-        dummy_emb = self.embedder.get_embedding("dummy")
-        self.dimension = len(dummy_emb)
+        # The embedding dimension for all-MiniLM-L6-v2 is 384
+        self.dimension = 384
         
         self.index = None
         self.texts: List[str] = []

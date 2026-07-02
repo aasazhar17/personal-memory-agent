@@ -1,6 +1,4 @@
 import os
-import urllib.request
-import json
 import time
 from typing import List, Any
 
@@ -35,6 +33,7 @@ class EmbeddingGenerator:
             return self._clean_embeddings(res, len(texts))
 
     def _query_hf_api(self, inputs: Any) -> Any:
+        import requests
         token = os.environ.get("HF_TOKEN")
         # Format the model path: sentence-transformers/all-MiniLM-L6-v2
         model_id = f"sentence-transformers/{self.model_name}"
@@ -48,21 +47,26 @@ class EmbeddingGenerator:
         
         for attempt in range(3):
             try:
-                data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(api_url, data=data, headers=headers)
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    res = json.loads(response.read().decode("utf-8"))
-                    if isinstance(res, dict) and "error" in res:
-                        err_msg = res.get("error", "")
-                        if "loading" in err_msg.lower():
-                            time.sleep(3)
-                            continue
-                        raise Exception(err_msg)
-                    return res
+                response = requests.post(api_url, headers=headers, json=payload, timeout=15)
+                # Handle model loading / service unavailable
+                if response.status_code == 503:
+                    time.sleep(4)
+                    continue
+                
+                response.raise_for_status()
+                res = response.json()
+                
+                if isinstance(res, dict) and "error" in res:
+                    err_msg = res.get("error", "")
+                    if "loading" in err_msg.lower():
+                        time.sleep(4)
+                        continue
+                    raise Exception(err_msg)
+                return res
             except Exception as e:
                 if attempt == 2:
                     raise e
-                time.sleep(3)
+                time.sleep(4)
         raise RuntimeError("Failed to query Hugging Face Inference API after 3 attempts.")
 
     def _clean_embedding(self, res: Any) -> List[float]:
