@@ -16,9 +16,9 @@ class AgentPlanner:
     async def execute(self, query: str, api_key: str = None) -> Dict[str, Any]:
         # Parse query: if it has context prefix, extract user query
         user_query = query
-        if "\n\nUser Query: " in query:
-            parts = query.split("\n\nUser Query: ")
-            user_query = parts[1]
+        if "User Query: " in query:
+            parts = query.split("User Query: ")
+            user_query = parts[-1].strip()
         
         # Check for local greeting, chit-chat, identity, or help fallbacks
         chat_fallback = self._handle_local_chat_fallback(user_query)
