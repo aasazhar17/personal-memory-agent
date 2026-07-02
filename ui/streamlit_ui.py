@@ -151,10 +151,15 @@ def render_ui():
         st.session_state.profile_tool = ProfileTool(st.session_state.db)
     if "notes_tool" not in st.session_state:
         st.session_state.notes_tool = NotesTool(st.session_state.db)
-    if "pdf_tool" not in st.session_state:
-        st.session_state.pdf_tool = PDFTool(st.session_state.db)
     if "expense_tool" not in st.session_state:
         st.session_state.expense_tool = ExpenseTool(st.session_state.db)
+    if "pdf_tool" not in st.session_state:
+        st.session_state.pdf_tool = PDFTool(
+            st.session_state.db,
+            profile_tool=st.session_state.profile_tool,
+            notes_tool=st.session_state.notes_tool,
+            expense_tool=st.session_state.expense_tool
+        )
     if "calculator_tool" not in st.session_state:
         st.session_state.calculator_tool = CalculatorTool()
     if "router" not in st.session_state:
@@ -425,7 +430,8 @@ def render_ui():
                         f.write(uploaded_file.getbuffer())
                     
                     with st.spinner(f"Reading and indexing {uploaded_file.name}..."):
-                        res = asyncio.run(st.session_state.pdf_tool.ingest_pdf(temp_path))
+                        clean_key = api_key.strip() if api_key else None
+                        res = asyncio.run(st.session_state.pdf_tool.ingest_pdf(temp_path, api_key=clean_key))
                         if res.get("success"):
                             st.success(res.get("message"))
                             st.session_state.last_uploaded_name = uploaded_file.name

@@ -169,7 +169,13 @@ class AgentPlanner:
         if observations:
             answer = self._synthesize(user_query, observations)
         else:
-            answer = "I couldn't find any relevant information in your personal records. Please try rephrasing."
+            answer = (
+                "I couldn't find any relevant information in your personal records.\n\n"
+                "💡 **Tip**: You can save new information directly in the chat! Try saying:\n"
+                "- *\"add note: [note content]\"*\n"
+                "- *\"spent 500 on dinner\"*\n"
+                "- *\"my college name is [Name]\"*"
+            )
             
         return {
             "answer": answer,
@@ -403,7 +409,7 @@ JSON Output:
             if observations:
                 ans = await self._synthesize_with_llm(query, observations, api_key)
             else:
-                ans = "I couldn't find any relevant information in your personal records."
+                ans = await self._synthesize_with_llm(query, {}, api_key)
                 
             return {
                 "answer": ans,
@@ -430,6 +436,8 @@ Guidelines:
 3. Keep the tone friendly, helpful, and conversational.
 4. If some context is irrelevant, ignore it.
 5. Use markdown formatting to make the answer highly readable (e.g. bold text, bullet points).
+6. CRITICAL: If the observations are empty or do not contain the answer, and the user is asking a general knowledge question (e.g., "who is Einstein", "tell me a story", "what is 5+5", "who made you"), answer it using your general knowledge directly.
+7. CRITICAL: If the user is asking about their personal data (e.g., "where is my college", "what is my salary", "what is my pet name") and it is not found in the observations, politely inform the user that you couldn't find this information in their saved notes, expenses, or profile facts, and offer to remember it if they share the details.
 
 Response:
 """
