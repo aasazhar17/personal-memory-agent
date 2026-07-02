@@ -88,10 +88,13 @@ class AgentPlanner:
                 agent_res = await self._run_llm_agent(user_query, api_key)
                 if agent_res:
                     return agent_res
+                else:
+                    steps.append("LLM agent did not return a valid action structure.")
             except Exception as e:
                 import traceback
                 print(f"Exception in LLM agent: {str(e)}")
                 traceback.print_exc()
+                steps.append(f"LLM agent failed with error: {str(e)}")
                 
         # 5. Local routing and execution fallback
         tools = await self.router.route(user_query, api_key=None)
@@ -289,13 +292,18 @@ JSON Output:
             )
         )
         text_response = response.text.strip()
-        if text_response.startswith("```"):
-            lines = text_response.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            text_response = "\n".join(lines).strip()
+        # Robust JSON extraction
+        json_match = re.search(r'(\{.*\})', text_response, re.DOTALL)
+        if json_match:
+            text_response = json_match.group(1).strip()
+        else:
+            if text_response.startswith("```"):
+                lines = text_response.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                text_response = "\n".join(lines).strip()
             
         data = json.loads(text_response)
         action = data.get("action")

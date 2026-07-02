@@ -64,7 +64,12 @@ JSON List:
                     generation_config={"response_mime_type": "application/json"}
                 )
             )
-            data = json.loads(response.text.strip())
+            text_response = response.text.strip()
+            # Robust JSON array extraction
+            json_match = re.search(r'(\[.*\])', text_response, re.DOTALL)
+            if json_match:
+                text_response = json_match.group(1).strip()
+            data = json.loads(text_response)
             if isinstance(data, list):
                 valid_tools = [t for t in data if t in self.tool_names]
                 if valid_tools:
